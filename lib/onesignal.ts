@@ -1,18 +1,60 @@
 /**
  * OneSignal push notification setup and helper functions.
  * Handles SDK initialization, permission management, and player ID retrieval.
+ *
+ * Gracefully degrades in Expo Go where the native module is unavailable —
+ * all functions become no-ops that return safe defaults.
  */
 
-import { OneSignal, LogLevel } from "react-native-onesignal";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 
 const APP_ID = process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID ?? "";
 
+const isExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+  Constants.appOwnership === "expo";
+
+interface OneSignalModule {
+  OneSignal: {
+    Debug: { setLogLevel: (level: number) => void };
+    initialize: (appId: string) => void;
+    Notifications: {
+      getPermissionAsync: () => Promise<boolean>;
+      requestPermission: (fallback: boolean) => Promise<boolean>;
+    };
+    User: {
+      pushSubscription: { getIdAsync: () => Promise<string | null> };
+      addTag: (key: string, value: string) => void;
+    };
+    login: (userId: string) => void;
+  };
+  LogLevel: { Verbose: number };
+}
+
+let OS: OneSignalModule | null = null;
+
+if (!isExpoGo) {
+  try {
+    OS = require("react-native-onesignal") as OneSignalModule;
+  } catch {
+    if (__DEV__) {
+      console.warn("[OneSignal] Native module not available, features disabled");
+    }
+  }
+}
+
 /**
  * Initializes the OneSignal SDK with the configured app ID.
- * Sets verbose logging in development. Does not request permission immediately —
- * call requestPermission() on a meaningful user interaction instead.
+ * No-op in Expo Go where the native module is unavailable.
  */
 export function initOneSignal(): void {
+  if (!OS) {
+    if (__DEV__) {
+      console.warn("[OneSignal] Skipping init — native module not available (Expo Go)");
+    }
+    return;
+  }
+
   if (!APP_ID) {
     if (__DEV__) {
       console.warn("[OneSignal] No app ID configured");
@@ -21,48 +63,55 @@ export function initOneSignal(): void {
   }
 
   if (__DEV__) {
-    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+    OS.OneSignal.Debug.setLogLevel(OS.LogLevel.Verbose);
   }
 
-  OneSignal.initialize(APP_ID);
+  OS.OneSignal.initialize(APP_ID);
 }
 
 /**
  * Checks if the app currently has push notification permission.
+ * Returns false when native module is unavailable.
  */
 export async function hasPermission(): Promise<boolean> {
-  return OneSignal.Notifications.getPermissionAsync();
+  if (!OS) return false;
+  return OS.OneSignal.Notifications.getPermissionAsync();
 }
 
 /**
  * Requests push notification permission from the user.
- * @param fallbackToSettings If true, prompts user to open Settings when previously denied
+ * Returns false when native module is unavailable.
  */
 export async function requestPermission(
   fallbackToSettings = false
 ): Promise<boolean> {
-  return OneSignal.Notifications.requestPermission(fallbackToSettings);
+  if (!OS) return false;
+  return OS.OneSignal.Notifications.requestPermission(fallbackToSettings);
 }
 
 /**
  * Gets the OneSignal push subscription ID (player ID).
- * Returns null if the user hasn't opted in or SDK isn't initialized.
+ * Returns null when native module is unavailable.
  */
 export async function getPlayerId(): Promise<string | null> {
-  return OneSignal.User.pushSubscription.getIdAsync();
+  if (!OS) return null;
+  return OS.OneSignal.User.pushSubscription.getIdAsync();
 }
 
 /**
  * Associates an external user ID with the OneSignal device record.
- * Call after authentication to link push tokens to your user.
+ * No-op when native module is unavailable.
  */
 export function setExternalUserId(userId: string): void {
-  OneSignal.login(userId);
+  if (!OS) return;
+  OS.OneSignal.login(userId);
 }
 
 /**
  * Adds a tag to the OneSignal user for segmentation.
+ * No-op when native module is unavailable.
  */
 export function sendTag(key: string, value: string): void {
-  OneSignal.User.addTag(key, value);
+  if (!OS) return;
+  OS.OneSignal.User.addTag(key, value);
 }

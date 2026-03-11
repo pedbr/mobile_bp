@@ -2,28 +2,36 @@
  * Sentry error tracking and crash reporting initialization.
  * Provides init, ErrorBoundary, captureException, setUser, and wrap utilities.
  */
-import * as Sentry from '@sentry/react-native';
+import * as Sentry from "@sentry/react-native";
 
-const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? '';
+const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? "";
+
+const DSN_REGEX = /^https:\/\/[a-f0-9]+@[a-z0-9.-]+\.sentry\.io\/\d+$/i;
 
 /**
  * Initializes the Sentry SDK for React Native.
- * Uses higher trace sampling in dev (1.0) and lower in prod (0.2).
+ * Validates the DSN format before init to prevent noisy errors with placeholder values.
  */
 export function initSentry(): void {
-  if (!dsn) {
+  if (!dsn || !DSN_REGEX.test(dsn)) {
     if (__DEV__) {
-      console.warn('[Sentry] No DSN configured');
+      console.warn("[Sentry] DSN missing or invalid, skipping init");
     }
     return;
   }
 
-  Sentry.init({
-    dsn,
-    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
-    enableAutoSessionTracking: true,
-    debug: __DEV__,
-  });
+  try {
+    Sentry.init({
+      dsn,
+      tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+      enableAutoSessionTracking: true,
+      debug: __DEV__,
+    });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[Sentry] Init failed:", error);
+    }
+  }
 }
 
 /**
@@ -61,6 +69,5 @@ export function setUser(userId: string, email?: string): void {
 
 /**
  * Wraps the root component with Sentry instrumentation.
- * Use to wrap your app's root component for automatic error boundary and tracing.
  */
 export const wrapWithSentry = Sentry.wrap;

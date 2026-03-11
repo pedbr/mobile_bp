@@ -13,12 +13,18 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { LightTheme, DarkTheme } from "@/constants/colors";
 import { queryClient } from "@/lib/queryClient";
 import { initSentry, SentryErrorBoundary, wrapWithSentry } from "@/lib/sentry";
 import { initOneSignal } from "@/lib/onesignal";
 import { initRevenueCat } from "@/lib/revenuecat";
+import { supabase } from "@/lib/supabase";
 import { useAppStore } from "@/stores/appStore";
 import { useAuthStore } from "@/stores/authStore";
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -36,21 +42,38 @@ function RootLayout() {
     theme === "system" ? systemColorScheme ?? "light" : theme;
   const paperTheme = resolvedTheme === "dark" ? DarkTheme : LightTheme;
 
-  const [fontsLoaded] = useFonts({
-    "Inter-Regular": require("@/assets/fonts/Inter-Regular.ttf"),
-    "Inter-Medium": require("@/assets/fonts/Inter-Medium.ttf"),
-    "Inter-Bold": require("@/assets/fonts/Inter-Bold.ttf"),
+  const [fontsLoaded, fontError] = useFonts({
+    "Inter-Regular": Inter_400Regular,
+    "Inter-Medium": Inter_500Medium,
+    "Inter-Bold": Inter_700Bold,
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, fontError]);
 
   useEffect(() => {
     initRevenueCat();
     initOneSignal();
+  }, []);
+
+  useEffect(() => {
+    const { setSession, setLoading } = useAuthStore.getState();
+
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, s) => {
+      useAuthStore.getState().setSession(s);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -59,7 +82,7 @@ function RootLayout() {
     }
   }, [user?.id, user?.email]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return null;
   }
 

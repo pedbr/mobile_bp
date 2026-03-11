@@ -1,16 +1,16 @@
 /**
  * RevenueCat entitlements and paywall trigger hook.
  * Tracks subscription status, available packages, and provides purchase/restore actions.
+ * All calls go through the guarded lib/revenuecat helpers for Expo Go safety.
  */
 
 import { useState, useEffect, useCallback } from "react";
-import Purchases, {
-  type CustomerInfo,
-  type PurchasesPackage,
-} from "react-native-purchases";
+import type { CustomerInfo, PurchasesPackage } from "react-native-purchases";
 import {
   checkEntitlement,
   getOfferings,
+  purchasePackage as purchasePkg,
+  restorePurchases as restorePkg,
 } from "@/lib/revenuecat";
 
 export function useSubscription() {
@@ -31,6 +31,10 @@ export function useSubscription() {
       setIsSubscribed(entitlementResult.isSubscribed);
       setCustomerInfo(entitlementResult.customerInfo);
       setAvailablePackages(offeringsResult.packages);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("[useSubscription] refresh failed:", error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -42,9 +46,9 @@ export function useSubscription() {
 
   const purchase = useCallback(
     async (pkg: PurchasesPackage) => {
-      const result = await Purchases.purchasePackage(pkg);
-      if (result.customerInfo) {
-        setCustomerInfo(result.customerInfo);
+      const info = await purchasePkg(pkg);
+      if (info) {
+        setCustomerInfo(info);
         const { isSubscribed: subscribed } = await checkEntitlement();
         setIsSubscribed(subscribed);
       }
@@ -53,10 +57,12 @@ export function useSubscription() {
   );
 
   const restore = useCallback(async () => {
-    const info = await Purchases.restorePurchases();
-    setCustomerInfo(info);
-    const { isSubscribed: subscribed } = await checkEntitlement();
-    setIsSubscribed(subscribed);
+    const info = await restorePkg();
+    if (info) {
+      setCustomerInfo(info);
+      const { isSubscribed: subscribed } = await checkEntitlement();
+      setIsSubscribed(subscribed);
+    }
   }, []);
 
   return {

@@ -3,6 +3,7 @@
  * Reads environment variables from .env via Expo's built-in dotenv support.
  * All sensitive keys are accessed via process.env.EXPO_PUBLIC_* variables.
  */
+import { existsSync } from "fs";
 import { ExpoConfig, ConfigContext } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
@@ -23,7 +24,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: "com.yourcompany.appname",
     usesAppleSignIn: true,
-    googleServicesFile: "./GoogleService-Info.plist",
+    ...(existsSync("./GoogleService-Info.plist") && {
+      googleServicesFile: "./GoogleService-Info.plist",
+    }),
     config: {
       usesNonExemptEncryption: false,
     },
@@ -37,7 +40,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: "#ffffff",
     },
     package: "com.yourcompany.appname",
-    googleServicesFile: "./google-services.json",
+    ...(existsSync("./google-services.json") && {
+      googleServicesFile: "./google-services.json",
+    }),
     permissions: ["RECEIVE_BOOT_COMPLETED", "VIBRATE"],
   },
   web: {
@@ -46,6 +51,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: "./assets/images/favicon.png",
   },
   plugins: [
+    [
+      "onesignal-expo-plugin",
+      {
+        mode: "development",
+      },
+    ],
     "expo-router",
     "expo-font",
     "expo-secure-store",
@@ -62,12 +73,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         organization: "your-org",
         project: "your-project",
-      },
-    ],
-    [
-      "react-native-onesignal",
-      {
-        mode: "development",
       },
     ],
     "expo-web-browser",

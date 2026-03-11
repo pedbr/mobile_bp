@@ -54,17 +54,15 @@ Production-ready React Native / Expo boilerplate with authentication, subscripti
 │   ├── fonts.ts             # Typography scale
 │   └── config.ts            # Environment variables and app constants
 └── assets/
-    ├── images/              # App icons, splash, onboarding images
-    └── fonts/               # Inter font files (Regular, Medium, Bold)
+    └── images/              # App icons, splash, onboarding images
 ```
 
 ## Setup Guide
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js >= 20.19.4 (required by Expo SDK 55 and React Native 0.83)
 - npm or yarn
-- Expo CLI: `npm install -g expo-cli`
 - EAS CLI: `npm install -g eas-cli`
 - iOS: Xcode (for simulators and builds)
 - Android: Android Studio (for emulators and builds)
@@ -215,14 +213,7 @@ CREATE TRIGGER profiles_updated_at
 2. Configure iOS (APNs) and Android (FCM) push credentials
 3. Copy the App ID to `.env`
 
-### 9. Add Font Files
-
-Download [Inter from Google Fonts](https://fonts.google.com/specimen/Inter) and place:
-- `Inter-Regular.ttf` → `assets/fonts/Inter-Regular.ttf`
-- `Inter-Medium.ttf` → `assets/fonts/Inter-Medium.ttf`
-- `Inter-Bold.ttf` → `assets/fonts/Inter-Bold.ttf`
-
-### 10. Replace Placeholder Images
+### 9. Replace Placeholder Images
 
 Replace the placeholder PNGs in `assets/images/` with your actual:
 - `icon.png` (1024x1024) — App icon
@@ -249,7 +240,10 @@ npx expo run:ios
 npx expo run:android
 ```
 
-> **Note:** RevenueCat, OneSignal, and Apple Sign-In require a development build (not Expo Go) because they use native modules.
+> **Note:** The app runs in Expo Go for rapid prototyping. RevenueCat, OneSignal, and
+> Apple Sign-In gracefully degrade with console warnings in Expo Go — you need a
+> development build (`npx expo run:ios` / `eas build --profile development`) for full
+> native module functionality.
 
 ## Building with EAS
 
@@ -302,7 +296,6 @@ When forking this boilerplate for a new app:
 - [ ] Update `name`, `slug`, `scheme`, `bundleIdentifier`, `package` in `app.config.ts`
 - [ ] Update `eas.json` with your Apple Team ID and Google Play credentials
 - [ ] Replace all placeholder images in `assets/images/`
-- [ ] Add real Inter font files to `assets/fonts/`
 - [ ] Fill in `.env` with real API keys
 - [ ] Run the Supabase SQL setup
 - [ ] Configure RevenueCat products and entitlements
@@ -320,6 +313,8 @@ When forking this boilerplate for a new app:
 - **Expo Router** for file-based routing with type-safe navigation and automatic deep linking
 - **AuthGuard** at the root layout level handles all auth redirects centrally
 - **Env vars** use Expo's built-in `EXPO_PUBLIC_*` convention — no extra config packages needed
+- **Expo Go compatibility** — native-only modules (OneSignal, RevenueCat) are loaded via conditional `require()` with try-catch guards, so the app runs in Expo Go with those features gracefully disabled
+- **Fonts** — loaded from `@expo-google-fonts/inter` (no manual TTF downloads needed)
 
 ## License
 
